@@ -1,35 +1,56 @@
-name: Build APK
+name: Build Fresh APK
 
-on:
-  push:
-    branches: [ main, master ]
-  workflow_dispatch:
+on: [push, workflow_dispatch]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
       
-    - name: Fix line endings
-      run: |
-        # Конвертируем все текстовые файлы в Unix format
-        find . -name "*.sh" -o -name "gradlew" -o -name "*.java" -o -name "*.gradle" -o -name "*.xml" -o -name "*.properties" | xargs dos2unix
-        # Или если dos2unix не установлен:
-        sed -i 's/\r$//' gradlew
-        sed -i 's/\r$//' *.sh 2>/dev/null || true
-        
     - name: Setup Java 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
-        cache: 'gradle'
         
-    - name: Make gradlew executable
-      run: chmod +x gradlew
+    - name: Create proper gradle wrapper
+      run: |
+        # Удаляем старый gradlew если есть
+        rm -f gradlew
+        rm -rf gradle/wrapper
+        
+        # Создаем новый gradlew с правильными line endings
+        cat > gradlew << 'EOF'
+#!/bin/sh
+
+# Gradle wrapper script
+APP_HOME="`pwd -P`"
+CLASSPATH="$APP_HOME/gradle/wrapper/gradle-wrapper.jar"
+
+# Check if wrapper jar exists
+if [ -f "$CLASSPATH" ]; then
+    exec java -cp "$CLASSPATH" org.gradle.wrapper.GradleWrapperMain "$@"
+else
+    echo "Gradle wrapper not found, using system Gradle"
+    exec gradle "$@"
+fi
+EOF
+        
+        # Создаем структуру папок
+        mkdir -p gradle/wrapper
+        
+        # Создаем properties файл
+        cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-bin.zip
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+EOF
+        
+        # Устанавливаем права
+        chmod +x gradlew
         
     - name: Build APK
       run: ./gradlew assembleDebug --stacktrace
@@ -37,6 +58,5 @@ jobs:
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: mults-parser-apk
+        name: fresh-apk
         path: app/build/outputs/apk/debug/app-debug.apk
-        retention-days: 30
