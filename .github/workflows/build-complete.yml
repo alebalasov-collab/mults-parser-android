@@ -1,4 +1,4 @@
-name: Build Complete APK
+name: Build APK
 
 on:
   push:
@@ -8,8 +8,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
       
     - name: Setup Java 17
       uses: actions/setup-java@v4
@@ -17,49 +19,17 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
         
-    - name: Download Gradle Wrapper JAR
-      run: |
-        mkdir -p gradle/wrapper
-        # Скачиваем официальный gradle-wrapper.jar
-        wget -q https://github.com/gradle/gradle/raw/v8.5.0/gradle/wrapper/gradle-wrapper.jar -O gradle/wrapper/gradle-wrapper.jar
-        ls -la gradle/wrapper/
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v2
+      with:
+        gradle-version: '8.5'
         
-    - name: Create proper gradle wrapper files
-      run: |
-        # Создаем правильный gradlew
-        cat > gradlew << 'EOF'
-#!/bin/sh
-
-APP_BASE_NAME=`basename "$0"`
-APP_HOME=`pwd -P`
-CLASSPATH="$APP_HOME/gradle/wrapper/gradle-wrapper.jar"
-
-if [ -f "$CLASSPATH" ]; then
-    java -cp "$CLASSPATH" org.gradle.wrapper.GradleWrapperMain "$@"
-else
-    echo "ERROR: gradle-wrapper.jar not found at $CLASSPATH"
-    exit 1
-fi
-EOF
-        
-        # Создаем properties файл
-        cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
-distributionBase=GRADLE_USER_HOME
-distributionPath=wrapper/dists
-distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-all.zip
-zipStoreBase=GRADLE_USER_HOME
-zipStorePath=wrapper/dists
-EOF
-        
-        # Исправляем line endings и права
-        sed -i 's/\r$//' gradlew
-        chmod +x gradlew
-        
-    - name: Build APK
-      run: ./gradlew assembleDebug --stacktrace
+    - name: Build with Gradle
+      run: gradle assembleDebug --stacktrace
         
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: complete-apk
+        name: mults-parser-apk
         path: app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 30
