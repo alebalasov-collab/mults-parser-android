@@ -1,9 +1,0 @@
-name: Build APK
-on: [push]
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: Build APK
-      uses: crazy-max/ghaction-gradle@v2
